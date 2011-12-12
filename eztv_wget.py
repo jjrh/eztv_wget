@@ -1,7 +1,10 @@
 import feedparser
-eztv_rss_link = "http://www.ezrss.it/feed/"
+#eztv_rss_link = "http://www.ezrss.it/feed/" # <--- currently broken using another one. 
+eztv_rss_link = "http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml"
 
 eztv = feedparser.parse(eztv_rss_link)
+
+
 
 def shell(command):
 	process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
@@ -33,25 +36,33 @@ wget = [] 	# wget.txt
 
 def test():
 	for entry in eztv.entries:
-		print entry.infohash
+		print entry.id
 		print "\n"
-
+#test()
 
 write = False
 def parseShows():
 	for entry in eztv.entries:
 		for show in shows:
 			present = False
+			
 			if show.upper() in entry.title.upper():
+				try:
+					hashThing = entry.infohash		# eztv rss is broken so we are using the feedburner one whci doesn't have infohash
+				except:
+					hashThing = entry.id
+				
 				for hash in infoHashes:
-					if entry.infohash == hash:
+					#if entry.infohash == hash:
+					if hashThing == hash:
 						present = True
 						break
 				if present == False:			
 					detailed.append(entry.title + " url: " + entry.link)
 					simple.append(entry.title)
 					wget.append(entry.link)
-					infoHashes.append(entry.infohash)
+					#infoHashes.append(entry.infohash)
+					infoHashes.append(hashThing)
 					global write 
 					write = True
 
