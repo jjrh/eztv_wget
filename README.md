@@ -13,14 +13,13 @@ I had gone to bed to watch the next morning.
 Files
 -----
  - `eztv_wget.py` - The main program.
- - `infoHashes.txt` - file that contains the infoHashes so torrents
-                are not downloaded twice.
+ - `.info_hashes` - file that contains the info hashes so torrents are not
+   downloaded twice.
  - `shows.txt` - list of shows you want to look for.
     - one name per line.
-    - show names don't have to be exact. The program
-        does 'for showname in fullshowname'
-        so putting 'bbc' in will download everything
-        with bbc in the title.
+    - show names don't have to be exact. The program does 'for showname in
+      fullshowname' so putting 'bbc' in will download everything with bbc in
+      the title.
 
  - `wget_torrents.sh` -
     1. Bash script that runs the program, reads wget.txt
