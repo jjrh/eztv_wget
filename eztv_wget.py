@@ -100,7 +100,7 @@ class Eztv(object):
         self.save_list(self.log_path + 'wget.txt', self.results_wget, 'a')
 
         # Overwrite this log
-        self.save_list(self.info_hashes_filename, self.results_wget, 'w')
+        self.save_list(self.info_hashes_filename, self.info_hashes, 'w')
 
     def save_list(self, filename, data_list, mode):
         """Write list of data to a log file"""
