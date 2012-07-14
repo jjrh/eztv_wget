@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 import feedparser
+import time
+import urllib
+import libtorrent as lt
 
 class Eztv(object):
     """Eztv torrent search"""
@@ -30,6 +33,8 @@ class Eztv(object):
 
     # Wget results (list of URLs to torrents to be fetched)
     results_wget = []
+
+    torrents = {}
 
     def __init__(self):
         """Constructor"""
@@ -68,8 +73,6 @@ class Eztv(object):
 
         eztv_feed = self.parse_feed()
 
-        results = 0
-
         for entry in eztv_feed.entries:
             for show in self.target_shows:
                 if show.upper() in entry.title.upper():
@@ -83,14 +86,69 @@ class Eztv(object):
                     if hash_thing in self.info_hashes:
                         continue
 
-                    self.results_detailed.append(entry.title + " url: " + entry.link)
-                    self.results_simple.append(entry.title)
-                    self.results_wget.append(entry.link)
                     self.info_hashes.append(hash_thing)
-                    results = results + 1
+
+                    info_hash,name = self.get_torrent_infohash(entry.link)
+
+                    if info_hash == False:
+                        continue
+
+                    torrent = {
+                        'info_hash': str(info_hash),
+                        'name': name,
+                        'uri': entry.link,
+                        'title': entry.title
+                    }
+
+                    # Store each torrent by actual info_hash to eliminate duplicates
+                    self.torrents[str(info_hash)] = torrent
+
+        for ih in self.torrents:
+            t = self.torrents[ih]
+            self.results_detailed.append(t['info_hash']\
+                    + " title: " + t['title']\
+                    + " url: " + t['uri']\
+                    + " name: " + t['name'])
+            self.results_simple.append(t['title'])
+            self.results_wget.append(t['uri'])
 
         self.write_logs()
-        return results
+        return len(self.torrents)
+
+    def get_torrent_infohash(self, uri):
+        """Read the info_hash and name for a torrent URI"""
+        if uri[0:7] == 'magnet:':
+            # Getting an error when attempting to read magnet links so skipping
+            # for now
+            return False, uri
+            info = self.read_magnet_torrent(uri)
+        else:
+            info = self.read_torrent(uri)
+
+        return info.info_hash(), info.name()
+    
+    def read_torrent(self, torrent_uri):
+        """Read the torrent_info for a given torrent URI"""
+        savefile, message = urllib.urlretrieve(torrent_uri)
+        e = lt.bdecode(open(savefile, 'rb').read())
+        info = lt.torrent_info(e)
+        return info
+
+    def read_magnet_torrent(self, magnet_uri):
+        """Read the torrent_info from a given magnet torrent"""
+        params = {
+            'save_path': '.',
+            'storage_mode': lt.storage_mode_t(2),
+            'paused': False,
+            'auto_managed': True,
+            'duplicate_is_error': True
+        }
+
+        handle = lt.add_magnet_uri(lt.session(), magnet_uri, params)
+        while (not handle.has_metadata()):
+           time.sleep(.1)
+        info = handle.get_torrent_info()
+        return info
 
     def write_logs(self):
         """Write data to log files"""
