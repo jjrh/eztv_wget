@@ -3,6 +3,7 @@ import feedparser
 import time
 import urllib
 import libtorrent as lt
+import shutil
 
 class Eztv(object):
     """Eztv torrent search"""
@@ -31,9 +32,7 @@ class Eztv(object):
     # Simple results
     results_simple = []
 
-    # Wget results (list of URLs to torrents to be fetched)
-    results_wget = []
-
+    # Storage for resulting torrent meta-data
     torrents = {}
 
     def __init__(self):
@@ -110,7 +109,10 @@ class Eztv(object):
                     + " url: " + t['uri']\
                     + " name: " + t['name'])
             self.results_simple.append(t['title'])
-            self.results_wget.append(t['uri'])
+
+            # Now save the torrents to disk for later use
+            savefile, message = urllib.urlretrieve(t['uri'])
+            shutil.move(savefile, 'torrents/' + t['name'] + '.torrent')
 
         self.write_logs()
         return len(self.torrents)
@@ -155,7 +157,6 @@ class Eztv(object):
         # Preserve existing content in these logs
         self.save_list(self.log_path + 'simple.txt', self.results_simple, 'a')
         self.save_list(self.log_path + 'detailed.txt', self.results_detailed, 'a')
-        self.save_list(self.log_path + 'wget.txt', self.results_wget, 'a')
 
         # Overwrite this log
         self.save_list(self.info_hashes_filename, self.info_hashes, 'w')
