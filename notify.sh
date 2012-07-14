@@ -6,4 +6,4 @@ cd $DIR
 
 python eztv_wget.py
 
-notify-send 'eztv-wget' "`ls torrents/*.torrent`"
+notify-send 'eztv-wget' "`ls torrents/*.torrent 2> /dev/null`"
