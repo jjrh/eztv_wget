@@ -21,20 +21,23 @@ Files
       fullshowname' so putting 'bbc' in will download everything with bbc in
       the title.
 
- - `wget_torrents.sh` -
-    1. Bash script that runs the program, reads wget.txt
-    2. Does wget on those files, downloads them to the directory then moves them
-    to a folder. In my case, I have a folder called `~/torrent_watch` which my
-    client auto adds any torrents in that folder.
-        (note: we 2> /dev/null so that if there isn't any new torrents it won't
-        scream that it can't move anything)
-    3. We then empty wget.txt since the torrents have been downloaded.
+ - `fetch.sh` -
+    1. Bash script that runs the program, downloads new torrents.
+    2. Moves the .torrent files to the torrent watch directory. In my case, I
+       have a folder called `~/torrent_watch` which my client auto adds any
+       torrents in that folder.
+
+ - `notify.sh` -
+    - A script that simply downloads any new torrents and notifies of the
+      contents of the torrents directory.
 
  - `log/`
     - `clearLog.sh` - clears all the log files.
-    - `detailed.txt` - verbose logging of found match URLs
+    - `detailed.txt` - verbose logging of found match URLs.
     - `simple.txt` - less verbose logging.
-    - `wget.txt`  =    File that has links for wget to grab.
+
+ - `torrents/` - Directory for storing downloaded .torrent files
+    - `clear_torrents.sh` - clears all the torrent files.
 
 Installing
 ----------
