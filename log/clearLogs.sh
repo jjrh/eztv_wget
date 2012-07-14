@@ -1,4 +1,4 @@
 #!/bin/bash
-echo "" > wget.txt
-echo "" > detailed.txt
-echo "" > simple.txt
+: > wget.txt
+: > detailed.txt
+: > simple.txt

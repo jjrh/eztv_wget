@@ -1,112 +1,125 @@
+#!/usr/bin/env python
 import feedparser
-#eztv_rss_link = "http://www.ezrss.it/feed/" # <--- currently broken using another one. 
-eztv_rss_link = "http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml"
 
-eztv = feedparser.parse(eztv_rss_link)
+class Eztv(object):
+    """Eztv torrent search"""
 
+    # Version of this client
+    VERSION = '0.8'
 
+    #eztv_rss_link = "http://www.ezrss.it/feed/" # <--- currently broken using another one.
+    eztv_rss_link = "http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml"
 
-def shell(command):
-	process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-	output = process.communicate()[0]
-	output = output.splitlines()
-	return output
+    # Path to the log directory
+    log_path = 'log/'
 
-f = open("shows.txt")
-shows = []
-for line in f:
-	if len(line) >1:
-		line = line[:len(line)-1] # remove \n
-		shows.append(line)
-f.close()
+    # Path to file containing the info_hashes from previous sessions
+    info_hashes_filename = '.info_hashes'
 
+    # List of already fetched torrent URLs
+    info_hashes = []
 
-infoHashes = []
-f = open("infoHashes.txt")
-for line in f:
-	if len(line) > 1:
-		line = line[:len(line)-1]
-		infoHashes.append(line)
-f.close()
+    # List of shows to be downloaded
+    target_shows = []
 
-detailed = [] 	# log detailed.txt
-simple = [] 	# log simple.txt
-wget = [] 	# wget.txt
+    # Detailed results
+    results_detailed = []
 
+    # Simple results
+    results_simple = []
 
-def test():
-	for entry in eztv.entries:
-		print entry.id
-		print "\n"
-#test()
+    # Wget results (list of URLs to torrents to be fetched)
+    results_wget = []
 
-write = False
-def parseShows():
-	for entry in eztv.entries:
-		for show in shows:
-			present = False
-			
-			if show.upper() in entry.title.upper():
-				try:
-					hashThing = entry.infohash		# eztv rss is broken so we are using the feedburner one whci doesn't have infohash
-				except:
-					hashThing = entry.id
-				
-				for hash in infoHashes:
-					#if entry.infohash == hash:
-					if hashThing == hash:
-						present = True
-						break
-				if present == False:			
-					detailed.append(entry.title + " url: " + entry.link)
-					simple.append(entry.title)
-					wget.append(entry.link)
-					#infoHashes.append(entry.infohash)
-					infoHashes.append(hashThing)
-					global write 
-					write = True
+    def __init__(self):
+        """Constructor"""
+        self.read_info_hashes(self.info_hashes_filename)
 
+    def read_target_shows(self, filename):
+        """Read the target shows from a file and populate target_shows list"""
+        f = open(filename)
+        for line in f:
+            line = line.strip()
+            if len(line):
+                self.target_shows.append(line.upper())
+        f.close()
 
-def writeLogs():
-	f = open("log/simple.txt",'r+')
-	global simple
-	global detailed
-	global wget
-	for line in f:
-		if len(line) > 1:
-			simple.append(line)
-	for line in simple:
-		f.write(line+'\n')
-	f.close()
-	f = open("log/detailed.txt",'r+')
-	for line in f:
-		if len(line) > 1:
-			detailed.append(line)
-	for line in detailed:
-		f.write(line+'\n')
-	f.close()
-	f = open("log/wget.txt",'r+')
-	for line in f:
-		if len(line) > 1:
-			wget.append(line)
-	for line in wget:
-		f.write(line+'\n')
-	f.close()
-	f = open("infoHashes.txt",'w')
-	for line in infoHashes:
-		f.write(line+"\n")
+    def read_info_hashes(self, filename):
+        """Read the info_hashes file and populate the list"""
+        try:
+            f = open(filename)
+        except IOError:
+            # If we can't read it, move along, first time use probably
+            return False
 
-parseShows()
-if write == True:
-	print "+---------------------------------"
-	print "| "+ str(len(simple)) + " New Torrents! "
-	print "+---------------------------------"
-	i = 1
-	for l in simple:
-		print " "+str(i)+".\t"+l
-		i += 1
-	writeLogs()
-else:
-	pass
-	#print "no new torrents!"
+        for line in f:
+            line = line.strip()
+            if len(line):
+                self.info_hashes.append(line)
+        f.close()
 
+    def parse_feed(self):
+        """Parse the RSS feed"""
+        return feedparser.parse(self.eztv_rss_link)
+
+    def find_shows(self, target_shows_filename):
+        """Find torrent links for shows in target_shows list"""
+        self.read_target_shows(target_shows_filename)
+
+        eztv_feed = self.parse_feed()
+
+        results = 0
+
+        for entry in eztv_feed.entries:
+            for show in self.target_shows:
+                if show.upper() in entry.title.upper():
+                    try:
+                        # eztv rss is broken so we are using the feedburner one
+                        # which doesn't have infohash
+                        hash_thing = entry.infohash
+                    except:
+                        hash_thing = entry.id
+
+                    if hash_thing in self.info_hashes:
+                        continue
+
+                    self.results_detailed.append(entry.title + " url: " + entry.link)
+                    self.results_simple.append(entry.title)
+                    self.results_wget.append(entry.link)
+                    self.info_hashes.append(hash_thing)
+                    results = results + 1
+
+        self.write_logs()
+        return results
+
+    def write_logs(self):
+        """Write data to log files"""
+        # Preserve existing content in these logs
+        self.save_list(self.log_path + 'simple.txt', self.results_simple, 'a')
+        self.save_list(self.log_path + 'detailed.txt', self.results_detailed, 'a')
+        self.save_list(self.log_path + 'wget.txt', self.results_wget, 'a')
+
+        # Overwrite this log
+        self.save_list(self.info_hashes_filename, self.results_wget, 'w')
+
+    def save_list(self, filename, data_list, mode):
+        """Write list of data to a log file"""
+        f = open(filename, mode)
+
+        for item in data_list:
+            f.write(item + '\n')
+
+        f.close()
+
+if __name__ == "__main__":
+    eztv = Eztv()
+    results_count = eztv.find_shows('shows.txt')
+    if results_count:
+        print "+---------------------------------"
+        print "| " + str(results_count) + " New Torrents! "
+        print "+---------------------------------"
+
+        i = 1
+        for result in eztv.results_simple:
+            print " " + str(i) + ".  " + result.strip()
+            i += 1
