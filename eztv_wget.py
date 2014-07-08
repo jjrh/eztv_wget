@@ -11,8 +11,8 @@ class Eztv(object):
     # Version of this client
     VERSION = '0.8'
 
-    #eztv_rss_link = "http://www.ezrss.it/feed/" # <--- currently broken using another one.
-    eztv_rss_link = "http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml"
+    eztv_rss_link = "http://www.ezrss.it/feed/" # <--- currently broken using another one.
+    #eztv_rss_link = "http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml"
 
     # Path to the log directory
     log_path = 'log/'
@@ -127,12 +127,17 @@ class Eztv(object):
         else:
             info = self.read_torrent(uri)
 
+        if info == None:
+            return False, ''
+
         return info.info_hash(), info.name()
     
     def read_torrent(self, torrent_uri):
         """Read the torrent_info for a given torrent URI"""
         savefile, message = urllib.urlretrieve(torrent_uri)
         e = lt.bdecode(open(savefile, 'rb').read())
+        if e == None:
+            return None
         info = lt.torrent_info(e)
         return info
 
