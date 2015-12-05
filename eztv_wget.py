@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 import feedparser
 import time
-import urllib
+import urllib2
 import libtorrent as lt
 import shutil
+import tempfile
+
+import sys
+from pprint import pprint # Pretty printing.
 
 class Eztv(object):
     """Eztv torrent search"""
@@ -11,8 +15,9 @@ class Eztv(object):
     # Version of this client
     VERSION = '0.8'
 
-    eztv_rss_link = "http://www.ezrss.it/feed/" # <--- currently broken using another one.
+    #eztv_rss_link = "http://www.ezrss.it/feed/" # <--- currently broken using another one.
     #eztv_rss_link = "http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml"
+    eztv_rss_link = "https://eztv.ag/ezrss.xml"
 
     # Path to the log directory
     log_path = 'log/'
@@ -75,27 +80,31 @@ class Eztv(object):
         for entry in eztv_feed.entries:
             for show in self.target_shows:
                 if show.upper() in entry.title.upper():
+                    torrent_uri = entry.enclosures[0].href
                     try:
-                        # eztv rss is broken so we are using the feedburner one
-                        # which doesn't have infohash
-                        hash_thing = entry.infohash
+                        # Try to get the infohash for a unique id
+                        info_hash = entry.torrent_infohash
+                        name = entry.torrent_filename
                     except:
-                        hash_thing = entry.id
+                        info_hash,name = self.get_torrent_infohash(torrent_uri)
+                        if info_hash == False:
+                            # default to entry id as unique id if no infohash
+                            info_hash = entry.id
 
-                    if hash_thing in self.info_hashes:
+                    if info_hash in self.info_hashes:
                         continue
 
-                    self.info_hashes.append(hash_thing)
+                    self.info_hashes.append(info_hash)
 
-                    info_hash,name = self.get_torrent_infohash(entry.link)
-
-                    if info_hash == False:
-                        continue
+                    if name == '':
+                        # When the name is not read properly, we should default
+                        # to the title
+                        name = str(entry.title)
 
                     torrent = {
                         'info_hash': str(info_hash),
                         'name': name,
-                        'uri': entry.link,
+                        'uri': torrent_uri,
                         'title': entry.title
                     }
 
@@ -108,14 +117,35 @@ class Eztv(object):
                     + " title: " + t['title']\
                     + " url: " + t['uri']\
                     + " name: " + t['name'])
-            self.results_simple.append(t['title'])
+            if t['uri'][0:7] == 'magnet:':
+                # We got this far and it is a magnet link, we need to bail
+                # since we cannot fetch the link
+                self.results_detailed.append('# Skipping torrent because cannot download magnet link')
+                self.results_simple.append(t['title'] + ' [SKIPPED]')
+                continue
+            else:
+                self.results_simple.append(t['title'])
 
             # Now save the torrents to disk for later use
-            savefile, message = urllib.urlretrieve(t['uri'])
-            shutil.move(savefile, 'torrents/' + t['name'] + '.torrent')
+            savefile = 'torrents/' + t['name'] + '.torrent'
+            self.save_file_from_url(t['uri'], savefile)
 
         self.write_logs()
         return len(self.torrents)
+
+    def save_file_from_url(self, uri, filename):
+        request = urllib2.Request(
+            uri, 
+            headers={
+                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36'
+            }
+        )
+        response = urllib2.urlopen(request)
+        filedata = response.read()
+
+        f = open(filename, 'w+')
+        f.write(filedata)
+        f.close()
 
     def get_torrent_infohash(self, uri):
         """Read the info_hash and name for a torrent URI"""
@@ -134,8 +164,10 @@ class Eztv(object):
     
     def read_torrent(self, torrent_uri):
         """Read the torrent_info for a given torrent URI"""
-        savefile, message = urllib.urlretrieve(torrent_uri)
-        e = lt.bdecode(open(savefile, 'rb').read())
+        tpointer,torrentfile = tempfile.mkstemp()
+        self.save_file_from_url(torrent_uri, torrentfile)
+        torrent = open(torrentfile, 'rb').read()
+        e = lt.bdecode(torrent)
         if e == None:
             return None
         info = lt.torrent_info(e)
