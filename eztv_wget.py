@@ -6,17 +6,13 @@ import libtorrent as lt
 import shutil
 import tempfile
 
-import sys
-from pprint import pprint # Pretty printing.
-
 class Eztv(object):
     """Eztv torrent search"""
 
     # Version of this client
     VERSION = '0.8'
 
-    #eztv_rss_link = "http://www.ezrss.it/feed/" # <--- currently broken using another one.
-    #eztv_rss_link = "http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml"
+    # Path to RSS feed URI
     eztv_rss_link = "https://eztv.ag/ezrss.xml"
 
     # Path to the log directory
