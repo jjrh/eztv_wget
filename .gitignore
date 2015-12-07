@@ -1,0 +1,4 @@
+.info_hashes
+log/*
+torrents/*
+*.pyc
